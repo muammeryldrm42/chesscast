@@ -80,7 +80,7 @@ export function GameScreen({ gameId, spectator = false }: { gameId: string; spec
       (payload.game.turn === "b" && payload.game.black_fid === user.fid));
 
   async function handleSquareClick(square: string) {
-    if (spectator || !myTurn || busy || payload.game.status !== "active") return;
+    if (!payload || spectator || !myTurn || busy || payload.game.status !== "active") return;
 
     if (!selectedSquare) {
       const piece = chess.get(square as never);
@@ -129,6 +129,7 @@ export function GameScreen({ gameId, spectator = false }: { gameId: string; spec
   }
 
   async function perform(path: string) {
+    if (!payload) return;
     setBusy(true);
     setMessage("");
     const res = await authFetch(path, { method: "POST" });
