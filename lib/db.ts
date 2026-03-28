@@ -21,7 +21,7 @@ if (!globalThis.__chesscast_sql) {
 export async function ensureDb() {
   if (globalThis.__chesscast_ready) return;
 
-  await sql.begin(async (tx) => {
+  await sql.begin(async (tx: any) => {
     await tx`
       create table if not exists users (
         fid bigint primary key,

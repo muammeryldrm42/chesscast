@@ -196,7 +196,7 @@ export async function applyMove(gameId: string, fid: number, move: { from: strin
   const nextPgn = chess.pgn();
   const ply = chess.history().length;
 
-  await sql.begin(async (tx) => {
+  await sql.begin(async (tx: any) => {
     await tx`
       update games
       set
