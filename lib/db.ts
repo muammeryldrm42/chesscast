@@ -6,22 +6,28 @@ declare global {
   var __chesscast_ready: boolean | undefined;
 }
 
-export const sql =
-  globalThis.__chesscast_sql ??
-  postgres(requireDatabaseUrl(), {
-    prepare: false,
-    max: 1,
-    idle_timeout: 20
-  });
+function getSqlClient() {
+  if (!globalThis.__chesscast_sql) {
+    globalThis.__chesscast_sql = postgres(requireDatabaseUrl(), {
+      prepare: false,
+      max: 1,
+      idle_timeout: 20
+    });
+  }
 
-if (!globalThis.__chesscast_sql) {
-  globalThis.__chesscast_sql = sql;
+  return globalThis.__chesscast_sql;
 }
+
+export const sql = ((...args: Parameters<ReturnType<typeof postgres>>) => getSqlClient()(...args)) as ReturnType<
+  typeof postgres
+>;
+
+(sql as any).begin = (...args: any[]) => (getSqlClient() as any).begin(...args);
 
 export async function ensureDb() {
   if (globalThis.__chesscast_ready) return;
 
-  await sql.begin(async (tx) => {
+  await sql.begin(async (tx: any) => {
     await tx`
       create table if not exists users (
         fid bigint primary key,

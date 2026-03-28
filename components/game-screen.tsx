@@ -35,6 +35,7 @@ type GamePayload = {
 
 export function GameScreen({ gameId, spectator = false }: { gameId: string; spectator?: boolean }) {
   const { authFetch, user, composeCast } = useMiniApp();
+
   const [payload, setPayload] = useState<GamePayload | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [moveHints, setMoveHints] = useState<string[]>([]);
@@ -43,6 +44,7 @@ export function GameScreen({ gameId, spectator = false }: { gameId: string; spec
 
   useEffect(() => {
     let timer: number | undefined;
+
     const load = async () => {
       const res = await authFetch(`/api/games/${gameId}`);
       if (res.ok) {
@@ -50,10 +52,13 @@ export function GameScreen({ gameId, spectator = false }: { gameId: string; spec
       }
       timer = window.setTimeout(load, 1000);
     };
+
     void load();
 
     return () => {
-      if (timer) window.clearTimeout(timer);
+      if (timer) {
+        window.clearTimeout(timer);
+      }
     };
   }, [authFetch, gameId]);
 
@@ -69,24 +74,28 @@ export function GameScreen({ gameId, spectator = false }: { gameId: string; spec
   }, [payload]);
 
   if (!payload) {
-    return <div className="rounded-3xl border border-white/10 bg-panel p-6 text-sm text-slate-300">Loading game…</div>;
+    return <div className="rounded-3xl border border-white/10 bg-panel p-6 text-sm text-slate-300">Loading game...</div>;
   }
 
   const chess = new Chess(payload.game.fen);
   const myTurn =
     !spectator &&
-    user.fid &&
+    Boolean(user.fid) &&
     ((payload.game.turn === "w" && payload.game.white_fid === user.fid) ||
       (payload.game.turn === "b" && payload.game.black_fid === user.fid));
 
   async function handleSquareClick(square: string) {
-    if (spectator || !myTurn || busy || payload.game.status !== "active") return;
+    if (!payload || spectator || !myTurn || busy || payload.game.status !== "active") {
+      return;
+    }
 
     if (!selectedSquare) {
       const piece = chess.get(square as never);
       if (!piece) return;
+
       const viewerColor = payload.game.white_fid === user.fid ? "w" : "b";
       if (piece.color !== viewerColor) return;
+
       const moves = chess.moves({ square: square as never, verbose: true });
       setSelectedSquare(square);
       setMoveHints(moves.map((move) => move.to));
@@ -129,17 +138,27 @@ export function GameScreen({ gameId, spectator = false }: { gameId: string; spec
   }
 
   async function perform(path: string) {
+    if (!payload) {
+      return;
+    }
+
     setBusy(true);
     setMessage("");
+
     const res = await authFetch(path, { method: "POST" });
     const body = await res.json().catch(() => ({}));
+
     if (!res.ok) {
       setMessage(body.error ?? "Action failed.");
     } else if (body.gameId) {
       window.location.href = `/game/${body.gameId}`;
     }
+
     const fresh = await authFetch(`/api/games/${gameId}`);
-    if (fresh.ok) setPayload(await fresh.json());
+    if (fresh.ok) {
+      setPayload(await fresh.json());
+    }
+
     setBusy(false);
   }
 
@@ -166,7 +185,12 @@ export function GameScreen({ gameId, spectator = false }: { gameId: string; spec
         onSquareClick={handleSquareClick}
       />
 
-      <PlayerStrip username={bottom.username} fid={bottom.fid} clockMs={bottomClock} active={payload.game.turn === (orientation === "white" ? "w" : "b")} />
+      <PlayerStrip
+        username={bottom.username}
+        fid={bottom.fid}
+        clockMs={bottomClock}
+        active={payload.game.turn === (orientation === "white" ? "w" : "b")}
+      />
 
       <div className="grid gap-3 rounded-3xl border border-white/10 bg-panel p-4 shadow-glow">
         <div className="flex flex-wrap gap-2 text-xs text-slate-300">
@@ -184,7 +208,10 @@ export function GameScreen({ gameId, spectator = false }: { gameId: string; spec
               <ActionButton disabled={busy || payload.game.status !== "active"} onClick={() => perform(`/api/games/${gameId}/draw/offer`)}>
                 Offer draw
               </ActionButton>
-              <ActionButton disabled={busy || payload.game.status !== "active" || !incomingDrawOffer} onClick={() => perform(`/api/games/${gameId}/draw/accept`)}>
+              <ActionButton
+                disabled={busy || payload.game.status !== "active" || !incomingDrawOffer}
+                onClick={() => perform(`/api/games/${gameId}/draw/accept`)}
+              >
                 Accept draw
               </ActionButton>
               <ActionButton disabled={busy || payload.game.status !== "active"} onClick={() => perform(`/api/games/${gameId}/resign`)}>
@@ -239,12 +266,12 @@ function PlayerStrip({
   active?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-3xl border border-white/10 bg-panel p-4 shadow-glow">
-      <div>
-        <div className="text-xs uppercase tracking-[0.25em] text-slate-500">{active ? "turn" : "waiting"}</div>
-        <div className="text-lg font-semibold text-white">@{username || `fid${fid}`}</div>
+    <div className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${active ? "border-brand/60 bg-brand/10" : "border-white/10 bg-panel"}`}>
+      <div className="flex flex-col">
+        <span className="text-sm font-semibold text-white">{username ?? `fid:${fid}`}</span>
+        <span className="text-xs text-slate-400">fid {fid}</span>
       </div>
-      <div className={active ? "text-xl font-bold text-accent2" : "text-xl font-bold text-white"}>{formatClock(clockMs)}</div>
+      <div className={`font-mono text-lg ${active ? "text-brand" : "text-slate-200"}`}>{formatClock(clockMs)}</div>
     </div>
   );
 }
@@ -262,8 +289,10 @@ function ActionButton({
     <button
       type="button"
       disabled={disabled}
-      onClick={() => void onClick()}
-      className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 font-medium text-white transition hover:border-accent/60 hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
+      onClick={() => {
+        void onClick();
+      }}
+      className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 transition hover:border-brand/50 hover:bg-brand/15 disabled:cursor-not-allowed disabled:opacity-40"
     >
       {children}
     </button>
