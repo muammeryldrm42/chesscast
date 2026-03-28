@@ -17,6 +17,14 @@ type MiniAppContextValue = {
   composeCast: (text: string, embeds?: string[]) => Promise<void>;
 };
 
+type CastEmbeds = [] | [string] | [string, string];
+
+function toCastEmbeds(embeds?: string[]): CastEmbeds | undefined {
+  if (!embeds || embeds.length === 0) return undefined;
+  if (embeds.length === 1) return [embeds[0]];
+  return [embeds[0], embeds[1]];
+}
+
 const MiniAppContext = createContext<MiniAppContextValue>({
   ready: false,
   isMiniApp: false,
@@ -101,7 +109,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
       },
       composeCast: async (text, embeds) => {
         if (isMiniApp) {
-          await sdk.actions.composeCast({ text, embeds });
+          await sdk.actions.composeCast({ text, embeds: toCastEmbeds(embeds) });
         }
       }
     }),
